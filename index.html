@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Interactive Birthday Cake</title>
+<title>Make a Wish</title>
 
 <style>
 body {
@@ -12,99 +12,67 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: #2d89ef;
+    background: #6c8cff;
     font-family: Arial, sans-serif;
-    overflow: hidden;
-    color: white;
     text-align: center;
+    overflow: hidden;
 }
 
-/* Cake */
-.cake {
-    width: 220px;
-    height: 140px;
-    background: #fff;
-    border-radius: 20px;
-    position: relative;
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-start;
-    padding-top: 20px;
+h1 {
+    color: white;
+    margin-bottom: 40px;
 }
 
-/* Candles */
+/* Candle */
 .candle {
-    width: 15px;
-    height: 60px;
-    background: #fff5cc;
-    border-radius: 5px;
+    width: 60px;
+    height: 180px;
+    background: #fff;
+    border-radius: 12px;
     position: relative;
+    box-shadow: inset 0 -10px 20px rgba(0,0,0,0.1);
 }
 
-/* Flame */
+/* Flame (now smoother + glowing) */
 .flame {
-    width: 12px;
-    height: 25px;
-    background: orange;
+    width: 26px;
+    height: 55px;
+    background: radial-gradient(circle at 50% 40%, #ffd000, #ff6a00);
     border-radius: 50%;
     position: absolute;
-    top: -25px;
-    left: 1.5px;
-    box-shadow: 0 0 10px orange;
-    animation: flicker 0.2s infinite;
+    top: -45px;
+    left: 17px;
+    box-shadow: 0 0 25px rgba(255, 165, 0, 0.9);
+    animation: flicker 0.15s infinite alternate;
+    transition: opacity 0.6s ease;
 }
 
+/* flicker */
 @keyframes flicker {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.1); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 1; }
+    0% { transform: scale(1); }
+    100% { transform: scale(1.08); }
 }
 
-/* Wish box */
-#wish {
-    display: none;
-    margin-top: 20px;
-    background: white;
-    color: black;
-    padding: 15px;
+button {
+    margin-top: 30px;
+    padding: 10px 20px;
+    border: none;
     border-radius: 10px;
+    cursor: pointer;
 }
 
-/* Confetti */
-.confetti {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: red;
-    top: -10px;
-    animation: fall 2s linear forwards;
-}
-
-@keyframes fall {
-    to {
-        transform: translateY(100vh) rotate(360deg);
-        opacity: 0;
-    }
-}
 </style>
 </head>
 
 <body>
 
-<h1>Make a Wish 🎂</h1>
+<h1>Make a Wish ✨</h1>
 
-<div class="cake" id="cake">
-    <div class="candle"><div class="flame"></div></div>
-    <div class="candle"><div class="flame"></div></div>
-    <div class="candle"><div class="flame"></div></div>
+<div class="candle">
+    <div class="flame" id="flame"></div>
 </div>
 
-<div id="wish">
-    🎉 Happy Birthday! 🎉<br>
-    Your wish is now in the universe ✨
-</div>
-
-<button onclick="startRecording()">🎤 Record Your Wish</button>
+<button onclick="playSong()">Play me 🎵</button>
 
 <audio id="song">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">
@@ -113,45 +81,9 @@ body {
 <script>
 
 let flameOn = true;
-let silence = 0;
-let recorder;
-let chunks = [];
+let silenceTime = 0;
 
-// 🎤 VOICE RECORDING
-function startRecording() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-        recorder = new MediaRecorder(stream);
-        recorder.start();
-
-        recorder.ondataavailable = e => chunks.push(e.data);
-
-        setTimeout(() => {
-            recorder.stop();
-        }, 5000);
-
-        recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audio.play();
-            chunks = [];
-        };
-    });
-}
-
-// 🎆 CONFETTI
-function confettiBurst() {
-    for (let i = 0; i < 40; i++) {
-        let c = document.createElement("div");
-        c.classList.add("confetti");
-        c.style.left = Math.random() * window.innerWidth + "px";
-        c.style.background = `hsl(${Math.random()*360},100%,50%)`;
-        document.body.appendChild(c);
-
-        setTimeout(() => c.remove(), 2000);
-    }
-}
+const flame = document.getElementById("flame");
 
 // 🎵 SONG
 function playSong() {
@@ -165,40 +97,30 @@ navigator.mediaDevices.getUserMedia({ audio: true })
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const mic = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
+
     mic.connect(analyser);
 
     const data = new Uint8Array(analyser.frequencyBinCount);
 
     function loop() {
         analyser.getByteFrequencyData(data);
+
         let volume = data.reduce((a,b)=>a+b)/data.length;
 
-        // 🔥 BLOW
+        // 💨 blow out (smooth fade)
         if (volume > 25 && flameOn) {
             flameOn = false;
-
-            document.querySelectorAll(".flame").forEach(f => f.style.display = "none");
-
-            document.getElementById("wish").style.display = "block";
-
-            playSong();
-            confettiBurst();
-
-            if (navigator.vibrate) {
-                navigator.vibrate(500);
-            }
+            flame.style.opacity = "0";
         }
 
-        // 🌬️ RELIGHT
+        // 🔥 relight after silence (smooth fade back)
         if (!flameOn) {
-            silence++;
+            silenceTime++;
 
-            if (silence > 80) {
+            if (silenceTime > 80) {
                 flameOn = true;
-                silence = 0;
-
-                document.querySelectorAll(".flame").forEach(f => f.style.display = "block");
-                document.getElementById("wish").style.display = "none";
+                silenceTime = 0;
+                flame.style.opacity = "1";
             }
         }
 
@@ -207,7 +129,9 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 
     loop();
 })
-.catch(() => alert("Allow microphone access for full experience"));
+.catch(() => {
+    alert("Please allow microphone access to blow the candle.");
+});
 
 </script>
 
